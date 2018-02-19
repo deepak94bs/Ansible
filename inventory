@@ -1,0 +1,7 @@
+i-055ad48f1227c0718 ansible_ssh_host=35.154.96.110 ansible_ssh_user=ec2-user
+i-01253c47140a2e615 ansible_ssh_host=35.154.26.148 ansible_ssh_user=ec2-user
+local ansible_ssh_host=localhost ansible_ssh_user=ansible
+
+[test]
+i-01253c47140a2e615
+i-055ad48f1227c0718

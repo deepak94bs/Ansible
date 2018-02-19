@@ -1,0 +1,15 @@
+---
+- hosts: localhost
+  become: yes
+  remote_user: ansible
+  connection: local
+  tasks:
+  - add_host: 
+      hostname: 52.224.237.195
+      ansible_ssh_host: web12
+      inventory_dir: /home/ansible/aws/
+  - lineinfile:
+      path: /home/ansible/aws/inventory
+      regexp: '^[test]'
+      insertbefore: EOF
+      line: web3

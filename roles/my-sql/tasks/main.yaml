@@ -1,0 +1,20 @@
+---
+- hosts: test
+  remote_user: ec2-user
+  gather_facts: false
+  tasks:
+  - name: Installing wget
+    yum: name=wget state=present
+    become: true
+  - name: Downloading MySQL rpm package
+    get_url: url=https://dev.mysql.com/get/mysql57-community-release-el7-11.noarch.rpm dest=/tmp
+    become: true
+  - name: Installing rpm package
+    command: /usr/bin/rpm -ivh /tmp/mysql57-community-release-el7-11.noarch.rpm
+    become: true 
+  - name: Installing MySQL
+    yum: name=mysql-server state=present
+    become: true
+  - name: MySQL start
+    service: name=mysqld enabled=yes state=started
+    become: true

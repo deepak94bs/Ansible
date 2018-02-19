@@ -1,0 +1,18 @@
+---
+- hosts: localhost
+  connection: local
+  remote_user: ansible
+  become: yes
+  gather_facts: no
+  vars_files:
+  - files/awscreds.yaml
+  tasks:
+  - name: Create New Key pair
+    ec2_key:
+      aws_access_key: "{{ aws_id }}"
+      aws_secret_key: "{{ aws_key }}"
+      name: ansiblekey12
+      state: present
+      region: ap-south-1
+      key_material: "{{ item }}"
+    with_file: /home/ansible/.ssh/id_rsa.pub
