@@ -1,0 +1,197 @@
+Installation of Ansible:
+pip install ansible
+
+In Azure:
+yum install epel-repository
+yum install ansible
+
+Create user ansible in master and node with root privileges
+
+create ssh connection between master and node 
+
+For ssh-copy-id make a user in remote system with password and login based.
+Then uncomment PasswordAuthentication to yes in source machine
+write ssh-copy-id user@IP
+
+1. Make exercise1 directory, inside the exercise1 create inventory file having minions IP's in it.
+2. Run the ansible ad-hoc commands
+ansible all -i inventory -u ansible -m ping
+ansible all -i inventory -u ansible -m command -a "/sbin/shutdown" --sudo
+
+Inventory File:
+[db] //group name
+1.1.1.1
+2.2.2.2
+
+[datacenter-west:children]
+db
+
+[datacenter-west:vars]
+ansible_ssh_user=ansible_user
+ansible_ssh_pass=password
+ntp-server=1.1.1.1
+
+Example of Inventory:
+web1 ansible_ssh_host=192.168.2.1 ansible_ssh_user=username ansible_ssh_pass=password
+or 
+web1 ansible_ssh_host=192.168.2.1 
+db1 ansible_ssh_host=192.168.2.1 
+[dbserver]
+db1
+[webserver]
+web1
+[datacenter:children]
+dbserver
+webserver
+[datacenter;vars]
+ansible_ssh_user=username
+ansible_ssh_pass=password
+
+Ad-hoc command:
+ansible web1 -i inventory -m ping
+or
+ansible webservers -i inventory -m ping
+ansible web1 -i inventory -m command -a "/usr/bin/yum update" --sudo
+or 
+ansible web1 -i inventory -m command -a "/usr/bin/yum update" --become
+instead sudo you can also use become 
+
+Mannual in ansible:
+ansible-doc -l  ansible-doc -s <playbook name>   ansible-doc <module-name>
+
+Example:
+YUM Module
+ansible web1 -i inventory -m yum -a "name=httpd state=present" --sudo
+It will install apache in web1
+ansible web1 -i inventory -m yum -a "list=mysql-server" --become
+ansible web1 -i inventory -m yum -a "update_cache=yes list=wget" --become
+
+SERVICE Module
+ansible web1 -i inventory -m service -a "name=httpd enabled=yes state=started"
+It will start the service in boot (enabled=yes) and changed the state to started 
+
+Command to get all information of remote machine:
+ansible web1 -i inventory -m setup
+ansible web1 -i inventory -m setup -a "filter=ansible_eth*" ansible_mounts
+
+Playbook:
+Playbook exceution command:-
+ansible-playbook playbook.yml -i inventory
+
+Retry command if playbook through error:
+ansible-playbook playbook2.yml -i inventory --limit @/home/ansible/exercise1/playbook2.retry
+
+Sample playbook for Ping:
+---
+- hosts: web1
+  remote_user: ansible
+  gather_facts: false
+  tasks:
+  - name: Ping the device
+    ping:
+
+- hosts: web2
+  remote_user: ansible
+  gather_facts: false
+  tasks:
+  - name: Ping the device
+    ping:
+
+Sample playbook for installing and starting apache:
+
+---
+- hosts: webserver
+  gather_facts: false
+  tasks:
+  - name: Install Apache
+    yum: name=httpd state=present
+    become: true
+  - name: Start Apache
+    service: name=httpd state=started
+    become: true
+
+Commands:
+ansible-playbook playbook2.yml
+if ansible.cfg define as:
+
+[defaults]
+deprecation_warnings = False
+hostfile = inventory
+
+Sample playbook for installing mysql in remote system:
+---
+- hosts: webserver
+  gather_facts: false
+  tasks:
+  - name: Installing wget
+    yum: name=wget state=present
+    become: true
+  - name: Downloading MySQL rpm package
+    get_url: url=https://dev.mysql.com/get/mysql57-community-release-el7-11.noarch.rpm dest=/tmp
+    become: true
+  - name: Installing rpm package
+    command: /usr/bin/rpm -ivh /tmp/mysql57-community-release-el7-11.noarch.rpm
+    become: true
+  - name: Installing MySQL
+    yum: name=mysql-server state=present
+    become: true
+  - name: MySQL start
+    service: name=mysqld enabled=yes state=started
+    become: true
+
+Sample playbook for getting keys of remote system:
+---
+- hosts: webserver:dbserver
+  gather_facts: false
+  become: true
+  tasks:
+  - name: Install Apache
+    yum: name=httpd state=present
+  - name: Start Apache
+    service: name=httpd state=started
+  - name: Getting key of remote system
+    fetch:
+      src: /home/ansible/.ssh/authorized_keys
+      dest: /tmp/prefix-{{ inventory_hostname}}
+      flat: yes
+
+For window host:
+https://medium.com/the-sysadmin/managing-windows-machines-with-ansible-60395445069f
+
+Windows preparation
+In order for Ansible to manage your windows machines, you will have to enable and configure PowerShell remoting. Fortunately, there is a quick way to do that.
+In your Windows machine, open a command prompt as Administrator and run the following command:
+
+@powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((new-object net.webclient).DownloadString('https://github.com/ansible/ansible/raw/devel/examples/scripts/ConfigureRemotingForAnsible.ps1'))"
+
+Note: Kaspersky Endpoint Security 10 uses its own firewall. You might change the configuration manually to allow WinRM incoming connections (TCP/5986)
+Ansible control machine
+Reminder: you must have a Linux Control Machine. There is no way to do that from a Windows host.
+Instructions
+You need to create the following directories/files structure:
+windows/
+├── group_vars/
+│   └── windows.yml
+└── hosts
+
+hosts file
+Add your Windows hosts to the inventory:
+# file: hosts
+[windows]
+192.168.1.10
+192.168.1.11
+Under the group_vars directory, add the following file named windows.yml, where my_user/my_pass are the credentials you will use to log in the Windows computers:
+# file: group_vars/windows.yml
+
+ansible_user: my_user
+ansible_password: my_pass
+ansible_port: 5986
+ansible_connection: winrm
+# The following is necessary for Python 2.7.9+ when using default WinRM self-signed certificates:
+ansible_winrm_server_cert_validation: ignore
+That’s all. Now you can test it using the win_ping module:
+$ ansible windows -i hosts -m win_ping
+192.168.1.10 | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
